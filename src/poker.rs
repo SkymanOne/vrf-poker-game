@@ -1,13 +1,11 @@
 extern crate schnorrkel;
 use std::io::stdin;
 
-use merlin::Transcript;
 use rand::Rng;
 use schnorrkel::{
-    derive,
-    vrf::{VRFInOut, VRFPreOut, VRFProof},
-    Keypair, PublicKey,
+    Keypair, PublicKey, signing_context,
 };
+use sha2::{Sha256, Digest};
 
 use crate::{recieve, try_draw};
 
@@ -32,7 +30,6 @@ impl Player {
 }
 
 pub fn run() {
-    let VRF_seed = &[0u8; 32];
 
     println!("game starts!");
     let mut input: String = String::new();
@@ -47,10 +44,24 @@ pub fn run() {
         .map(|_| Player::new(Keypair::generate_with(&mut csprng), 1000))
         .collect();
 
+    //let each player sign something
+    let message: &[u8] = b"I join the table";
+    let ctx = signing_context(b"Signing message for to jo join the table");
+    let signatures: Vec<u8> = players.iter().fold(Vec::new(), |mut byte, player| {
+        let mut signature_bytes = player.keypair.sign(ctx.bytes(message)).to_bytes().to_vec();
+        byte.append(&mut signature_bytes);
+        byte
+    });
+
+    let mut hasher = Sha256::new();
+    hasher.update(signatures);
+    let hash_result = hasher.finalize();
+    let vrf_seed: &[u8; 32] = hash_result.as_slice().try_into().expect("Wrong length");
+
     //each player is given 2 cards
     players.iter_mut().for_each(|player| {
         let cards: Vec<(u16, [u8; 97])> = (0..2)
-            .filter_map(|i| try_draw(&player.keypair, VRF_seed, i))
+            .filter_map(|i| try_draw(&player.keypair, vrf_seed, i))
             .collect();
         player.hand_card(cards);
     });
@@ -67,33 +78,33 @@ pub fn run() {
 
     let table = Keypair::generate_with(&mut csprng);
     let mut cards: Vec<(u16, [u8; 97])> = (0..3)
-        .filter_map(|i| try_draw(&table, VRF_seed, i))
+        .filter_map(|i| try_draw(&table, vrf_seed, i))
         .collect();
     println!(
         "Cards on the table are: {:?}",
-        reveal_cards(&cards, &table.public, VRF_seed)
+        reveal_cards(&cards, &table.public, vrf_seed)
     );
     wait();
     bid(&mut players, &mut bank);
     wait();
 
     //placing 4th card on the table
-    let card = try_draw(&table, VRF_seed, 3).unwrap();
+    let card = try_draw(&table, vrf_seed, 3).unwrap();
     cards.push(card);
 
     println!(
         "Cards on the table are: {:?}",
-        reveal_cards(&cards, &table.public, VRF_seed)
+        reveal_cards(&cards, &table.public, vrf_seed)
     );
     wait();
     bid(&mut players, &mut bank);
     wait();
 
     //placing 5th card on the table
-    let card = try_draw(&table, VRF_seed, 4).unwrap();
+    let card = try_draw(&table, vrf_seed, 4).unwrap();
     cards.push(card);
 
-    let table_cards = reveal_cards(&cards, &table.public, VRF_seed);
+    let table_cards = reveal_cards(&cards, &table.public, vrf_seed);
     println!("Cards on the table are: {:?}", table_cards);
     wait();
     bid(&mut players, &mut bank);
@@ -102,7 +113,7 @@ pub fn run() {
     let table_sum: u16 = table_cards.iter().sum();
     let mut highest_score = (0, &PublicKey::default());
     players.iter().for_each(|player| {
-        let player_cards = reveal_cards(&player.cards, &player.keypair.public, VRF_seed);
+        let player_cards = reveal_cards(&player.cards, &player.keypair.public, vrf_seed);
         println!("Player with public key: {:?} has cards: {:?}", player.keypair.public.to_bytes(), player_cards);
         let sum: u16 = player_cards.iter().sum::<u16>();
         let player_sum = table_sum + sum;

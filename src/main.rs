@@ -79,6 +79,7 @@ fn try_draw(
         Some((card, vrf_signature))
 }
 
+#[allow(dead_code)]
 /// Draws all our cards for the give seed
 fn draws(
 	keypair: &Keypair,
