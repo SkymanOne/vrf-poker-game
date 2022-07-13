@@ -46,13 +46,15 @@ pub fn run() {
 
     //let each player sign something
     let message: &[u8] = b"I join the table";
-    let ctx = signing_context(b"Signing message for to jo join the table");
+    let ctx = signing_context(b"Signing message to join the table");
     let signatures: Vec<u8> = players.iter().fold(Vec::new(), |mut byte, player| {
+        //producing signature and concatenate it to a vector of bytes
         let mut signature_bytes = player.keypair.sign(ctx.bytes(message)).to_bytes().to_vec();
         byte.append(&mut signature_bytes);
         byte
     });
 
+    //hash all the signature to produce a shared VRF seed
     let mut hasher = Sha256::new();
     hasher.update(signatures);
     let hash_result = hasher.finalize();

@@ -5,6 +5,6 @@ The solution basically simulates a texas holden poker game utilising [Verifiable
 Navigate to `poker.rs` to see the code.
 
 # Limitations
-* Card counting is not possible at the moment, duplicates are allowed
-* Card are represented as integers 1 -> 52, the winner is deduced by calculating points from from both hands.
+* Card counting is not possible at the moment
+* Cards are represented as integers 1 -> 52, the winner is deduced by calculating points from from both hands.
 * Hence, duplicates are allowed
